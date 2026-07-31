@@ -1,0 +1,96 @@
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+}
+
+.app-content {
+  flex: 1 0 auto;
+  padding-bottom: 76px; /* Avoid content being cut off by the fixed bottom menu */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background-color: var(--color-white);
+  border-top: 1px solid var(--color-neutral-200);
+  box-shadow: 0 -4px 12px rgba(13, 42, 65, 0.04);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.bottom-nav-container {
+  width: 100%;
+  max-width: 600px;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  padding: 0 var(--space-4);
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  text-decoration: none;
+  color: var(--color-neutral-600);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--duration-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-tab:hover:not(.disabled) {
+  color: var(--color-brand-700);
+}
+
+.nav-tab.active {
+  color: var(--color-brand-800);
+}
+
+/* Active indicator line (Accent gold color under active tab) */
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  background-color: var(--color-accent-500);
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+}
+
+.tab-icon {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.nav-tab.active .tab-icon {
+  transform: translateY(-1px);
+  stroke: var(--color-brand-800);
+}
+
+.nav-tab.disabled {
+  cursor: not-allowed;
+}
+
+.tab-label {
+  letter-spacing: 0.02em;
+}
