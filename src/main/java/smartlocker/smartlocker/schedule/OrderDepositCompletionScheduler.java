@@ -15,11 +15,11 @@ import java.util.List;
  * Scheduler 2: Kiểm tra các Order đang WAITING_FOR_DEPOSIT.
  *
  * Chạy mỗi 15 giây. Với mỗi order đang WAITING_FOR_DEPOSIT:
- *  - Nếu TẤT CẢ OrderLocker đều là PENDING → chuyển Order sang PENDING (người dùng đã bỏ đồ hết)
- *  - Nếu có bất kỳ OrderLocker nào vẫn chưa là PENDING/FAILED/INACTIVE → bỏ qua, chờ lần sau
+ *  - Nếu không còn OrderLocker WAIT_FOR_DEPOSIT và có ít nhất một WAIT_FOR_COLLECTION
+ *    → chuyển Order sang PENDING
+ *  - Nếu còn WAIT_FOR_DEPOSIT → bỏ qua, chờ lần sau
  *
- * Lưu ý: OrderLocker bị FAILED sẽ được Scheduler 1 xử lý. Scheduler này chỉ check
- * khi tất cả đã ở trạng thái final (PENDING, FAILED, INACTIVE).
+ * Nếu tất cả OrderLocker đều INACTIVE do timeout thì Order chuyển sang FAILED.
  */
 @Component
 public class OrderDepositCompletionScheduler {
@@ -46,15 +46,15 @@ public class OrderDepositCompletionScheduler {
                 + " order(s) in WAITING_FOR_DEPOSIT...");
 
         for (Order order : waitingOrders) {
-            long nonFinalCount = orderLockerRepository.countNonFinalOrderLockers(order.getId());
+            long waitingForDepositCount = orderLockerRepository.countWaitingForDeposit(order.getId());
 
-            if (nonFinalCount == 0) {
-                // Tất cả OrderLocker đã ở trạng thái cuối (PENDING hoặc FAILED)
-                // Kiểm tra có ít nhất 1 PENDING không (tức có đồ được bỏ vào)
-                boolean hasAnyPending = order.getOrderLockers().stream()
-                        .anyMatch(ol -> ol.getStatus() == OrderLockerStatus.PENDING);
+            if (waitingForDepositCount == 0) {
+                // Không còn ngăn chờ gửi. Nếu có ít nhất một ngăn chờ nhận thì order
+                // đã nhận được đồ; nếu tất cả INACTIVE thì toàn bộ đã timeout.
+                boolean hasAnyWaitingForCollection = order.getOrderLockers().stream()
+                        .anyMatch(ol -> ol.getStatus() == OrderLockerStatus.WAIT_FOR_COLLECTION);
 
-                if (hasAnyPending) {
+                if (hasAnyWaitingForCollection) {
                     order.setStatus(OrderStatus.PENDING);
                     orderRepository.save(order);
                     System.out.println("[Scheduler2] Order " + order.getId()

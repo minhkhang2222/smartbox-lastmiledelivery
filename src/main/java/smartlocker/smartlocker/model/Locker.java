@@ -11,8 +11,12 @@ public class Locker {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "locker_code", nullable = false)
+    @Column(name = "locker_code", nullable = false, unique = true)
     private String lockerCode;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id", nullable = false)
@@ -46,6 +50,14 @@ public class Locker {
 
     public void setLockerCode(String lockerCode) {
         this.lockerCode = lockerCode;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public Device getDevice() {

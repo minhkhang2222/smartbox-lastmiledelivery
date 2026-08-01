@@ -31,7 +31,7 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest request) {
         try {
-            CreateOrderResponse response = orderService.createOrderWithOtp(request);
+            CreateOrderResponse response = orderService.createOrder(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (LockersNotAvailableException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(

@@ -14,10 +14,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Scheduler 1: Timeout các OrderLocker còn WAIT_FOR_DEPOSIT quá 30 giây → FAILED
+ * Scheduler 1: Timeout các OrderLocker còn WAIT_FOR_DEPOSIT quá 30 giây → INACTIVE
  *
  * Chạy mỗi 30 giây. Nếu createdAt của OrderLocker < (now - 30s) và status vẫn là
- * WAIT_FOR_DEPOSIT → người dùng không bỏ đồ vào, chuyển thành FAILED.
+ * WAIT_FOR_DEPOSIT → người dùng không bỏ đồ vào, chuyển thành INACTIVE.
  */
 @Component
 public class OrderLockerTimeoutScheduler {
@@ -41,12 +41,12 @@ public class OrderLockerTimeoutScheduler {
             return;
         }
 
-        System.out.println("[Scheduler1] Found " + timedOut.size() + " OrderLocker(s) timed out, setting to FAILED.");
+        System.out.println("[Scheduler1] Found " + timedOut.size() + " OrderLocker(s) timed out, setting to INACTIVE.");
 
         for (OrderLocker ol : timedOut) {
-            ol.setStatus(OrderLockerStatus.FAILED);
+            ol.setStatus(OrderLockerStatus.INACTIVE);
             System.out.println("[Scheduler1] OrderLocker " + ol.getId()
-                    + " (locker=" + ol.getLocker().getLockerCode() + ") → FAILED (timeout)");
+                    + " (locker=" + ol.getLocker().getLockerCode() + ") → INACTIVE (timeout)");
         }
 
         orderLockerRepository.saveAll(timedOut);

@@ -70,7 +70,7 @@ public class MqttEventListener {
 
     /**
      * Xử lý event cửa tủ đóng lại đủ 3 giây (debounce tại ESP).
-     * Tìm OrderLocker đang WAIT_FOR_DEPOSIT, chuyển thành PENDING.
+     * Tìm OrderLocker đang WAIT_FOR_DEPOSIT, chuyển thành WAIT_FOR_COLLECTION.
      * Race condition safe: chỉ update nếu vẫn đang WAIT_FOR_DEPOSIT.
      */
     @Transactional
@@ -99,10 +99,10 @@ public class MqttEventListener {
             return;
         }
 
-        orderLocker.setStatus(OrderLockerStatus.PENDING);
+        orderLocker.setStatus(OrderLockerStatus.WAIT_FOR_COLLECTION);
         orderLockerRepository.save(orderLocker);
 
         System.out.println("[MqttEventListener] OrderLocker " + orderLocker.getId()
-                + " (locker=" + lockerCode + ") → PENDING. Door closed confirmed.");
+                + " (locker=" + lockerCode + ") → WAIT_FOR_COLLECTION. Door closed confirmed.");
     }
 }

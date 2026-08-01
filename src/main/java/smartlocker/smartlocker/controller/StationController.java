@@ -2,8 +2,9 @@ package smartlocker.smartlocker.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import smartlocker.smartlocker.model.LockerStation;
+import smartlocker.smartlocker.dto.StationResponseDto;
 import smartlocker.smartlocker.repository.LockerStationRepository;
+import smartlocker.smartlocker.repository.UserStationRegistrationRepository;
 
 import java.util.List;
 
@@ -13,13 +14,29 @@ import java.util.List;
 public class StationController {
 
     private final LockerStationRepository stationRepository;
+    private final UserStationRegistrationRepository registrationRepository;
 
-    public StationController(LockerStationRepository stationRepository) {
+    public StationController(LockerStationRepository stationRepository,
+            UserStationRegistrationRepository registrationRepository) {
         this.stationRepository = stationRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     @GetMapping
-    public ResponseEntity<List<LockerStation>> getAllStations() {
-        return ResponseEntity.ok(stationRepository.findAll());
+    public ResponseEntity<List<StationResponseDto>> getAllStations() {
+        List<StationResponseDto> stations = stationRepository.findAll().stream()
+                .map(StationResponseDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(stations);
+    }
+
+    @GetMapping("/registered/{userId}")
+    public ResponseEntity<List<StationResponseDto>> getRegisteredStations(@PathVariable java.util.UUID userId) {
+        List<StationResponseDto> stations = registrationRepository
+                .findAllByUserIdAndStatusOrderByRegisteredAtDesc(userId, "ACTIVE")
+                .stream()
+                .map(registration -> StationResponseDto.fromEntity(registration.getStation()))
+                .toList();
+        return ResponseEntity.ok(stations);
     }
 }

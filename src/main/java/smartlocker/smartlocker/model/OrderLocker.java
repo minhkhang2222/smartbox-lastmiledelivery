@@ -22,7 +22,7 @@ public class OrderLocker {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private OrderLockerStatus status = OrderLockerStatus.ASSIGNED;
+    private OrderLockerStatus status = OrderLockerStatus.WAIT_FOR_DEPOSIT;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -55,15 +55,12 @@ public interface OrderLockerRepository extends JpaRepository<OrderLocker, UUID> 
     List<OrderLocker> findTimedOutWaitingForDeposit(@Param("cutoffTime") LocalDateTime cutoffTime);
 
     /**
-     * Kiểm tra tất cả OrderLocker của một Order có đều là PENDING không.
-     * Dùng cho Scheduler 2: nếu tất cả PENDING → chuyển Order thành PENDING.
+     * Đếm các ngăn vẫn đang chờ người gửi bỏ đồ.
      */
     @Query("""
         SELECT COUNT(ol) FROM OrderLocker ol
         WHERE ol.order.id = :orderId
-          AND ol.status != smartlocker.smartlocker.model.OrderLockerStatus.PENDING
-          AND ol.status != smartlocker.smartlocker.model.OrderLockerStatus.FAILED
-          AND ol.status != smartlocker.smartlocker.model.OrderLockerStatus.INACTIVE
+          AND ol.status = smartlocker.smartlocker.model.OrderLockerStatus.WAIT_FOR_DEPOSIT
     """)
-    long countNonFinalOrderLockers(@Param("orderId") UUID orderId);
+    long countWaitingForDeposit(@Param("orderId") UUID orderId);
 }

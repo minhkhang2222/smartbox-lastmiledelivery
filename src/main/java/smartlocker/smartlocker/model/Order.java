@@ -22,6 +22,16 @@ public class Order {
     @JoinColumn(name = "station_id", nullable = false)
     private LockerStation station;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_user_id")
+    private User recipientUser;
+
+    @Column(name = "sender_phone_number", nullable = false)
+    private String senderPhoneNumber;
+
+    @Column(name = "recipient_phone_number", nullable = false)
+    private String recipientPhoneNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private OrderStatus status = OrderStatus.WAITING_FOR_DEPOSIT;
@@ -72,6 +82,30 @@ public class Order {
 
     public void setStation(LockerStation station) {
         this.station = station;
+    }
+
+    public User getRecipientUser() {
+        return recipientUser;
+    }
+
+    public void setRecipientUser(User recipientUser) {
+        this.recipientUser = recipientUser;
+    }
+
+    public String getSenderPhoneNumber() {
+        return senderPhoneNumber;
+    }
+
+    public void setSenderPhoneNumber(String senderPhoneNumber) {
+        this.senderPhoneNumber = senderPhoneNumber;
+    }
+
+    public String getRecipientPhoneNumber() {
+        return recipientPhoneNumber;
+    }
+
+    public void setRecipientPhoneNumber(String recipientPhoneNumber) {
+        this.recipientPhoneNumber = recipientPhoneNumber;
     }
 
     public OrderStatus getStatus() {

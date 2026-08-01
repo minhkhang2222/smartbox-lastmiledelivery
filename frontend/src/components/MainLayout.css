@@ -31,10 +31,10 @@
 
 .bottom-nav-container {
   width: 100%;
-  max-width: 600px;
+  max-width: 460px;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   align-items: center;
   padding: 0 var(--space-4);
 }

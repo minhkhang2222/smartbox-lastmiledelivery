@@ -20,7 +20,7 @@ public class MqttCommandPublisher {
 
     public void publishCommand(UUID deviceId, UUID stationId, LockerCommandPayload payload) {
         try {
-            mqttService.publish("smartlocker/" + deviceId + "/" + stationId + "/command",
+            mqttService.publish("smartlocker/" + stationId + "/" + deviceId + "/command",
                     mapper.writeValueAsString(payload));
         } catch (Exception e) {
             System.err.println("Error serializing MQTT payload: " + e.getMessage());

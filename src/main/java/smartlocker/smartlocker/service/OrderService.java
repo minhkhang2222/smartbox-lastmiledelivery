@@ -1,6 +1,7 @@
 package smartlocker.smartlocker.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import smartlocker.smartlocker.dto.CreateOrderRequest;
@@ -38,10 +39,8 @@ public class OrderService {
     @Autowired(required = false)
     private MqttCommandPublisher mqttCommandPublisher;
 
-    @Transactional
-    public CreateOrderResponse createOrderWithOtp(CreateOrderRequest request) {
-        return createOrder(request);
-    }
+    @Value("${mqtt.publish-enabled:true}")
+    private boolean mqttPublishEnabled;
 
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
@@ -76,6 +75,12 @@ public class OrderService {
             throw new IllegalArgumentException("User chưa đăng ký trạng thái ACTIVE tại trạm tủ này.");
         }
 
+        if (request.getRecipientPhoneNumber() == null || request.getRecipientPhoneNumber().isBlank()) {
+            throw new IllegalArgumentException("recipientPhoneNumber không được để trống.");
+        }
+        String recipientPhoneNumber = request.getRecipientPhoneNumber().trim();
+        User recipientUser = userRepository.findByPhoneNumber(recipientPhoneNumber).orElse(null);
+
         // Bước 4: lockerIds không rỗng
         List<UUID> lockerIds = request.getLockerIds();
         if (lockerIds == null || lockerIds.isEmpty()) {
@@ -89,7 +94,9 @@ public class OrderService {
         }
 
         // Bước 6: Tất cả locker đều tồn tại trong DB
-        List<Locker> lockers = lockerRepository.findAllById(lockerIds);
+        // Lock các row locker đến khi transaction kết thúc để hai request đồng thời
+        // không thể cùng giữ một locker.
+        List<Locker> lockers = lockerRepository.findAllByIdForUpdate(lockerIds);
         if (lockers.size() != uniqueLockerIds.size()) {
             throw new LockersNotAvailableException("Một hoặc nhiều tủ trong danh sách không tồn tại trong hệ thống.");
         }
@@ -102,11 +109,11 @@ public class OrderService {
                         "Tủ " + locker.getLockerCode() + " không thuộc về trạm tủ ID " + request.getStationId());
             }
 
-            // Bước 8: Kiểm tra OrderLocker của tủ - nếu có OrderLocker đang ở trạng thái
-            // active (ACTIVE, ASSIGNED) thì xem như không khả dụng
+            // Tủ được xem là đang có đơn nếu còn chờ gửi hoặc chờ nhận.
+            // Không dùng Locker.status vì đó là trạng thái vật lý của tủ.
             boolean hasActiveOrderLocker = orderLockerRepository.existsByLockerIdAndStatusIn(
                     locker.getId(),
-                    Arrays.asList(OrderLockerStatus.ACTIVE, OrderLockerStatus.ASSIGNED));
+                    Arrays.asList(OrderLockerStatus.WAIT_FOR_DEPOSIT, OrderLockerStatus.WAIT_FOR_COLLECTION));
             if (hasActiveOrderLocker) {
                 throw new LockersNotAvailableException("LOCKERS_NOT_AVAILABLE: Tủ " + locker.getLockerCode()
                         + " đã có đơn hàng (OrderLocker) đang hoạt động.");
@@ -128,6 +135,9 @@ public class OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setStation(station);
+        order.setSenderPhoneNumber(user.getPhoneNumber());
+        order.setRecipientPhoneNumber(recipientPhoneNumber);
+        order.setRecipientUser(recipientUser);
         order.setStatus(OrderStatus.WAITING_FOR_DEPOSIT);
         order.setCreatedAt(LocalDateTime.now());
         order.setExpiredAt(LocalDateTime.now().plusHours(24));
@@ -147,7 +157,7 @@ public class OrderService {
             orderLockers.add(orderLocker);
 
             // Gửi lệnh MQTT WAIT_FOR_DEPOSIT xuống station device cho tủ này
-            if (mqttCommandPublisher != null && locker.getDevice() != null) {
+            if (mqttPublishEnabled && mqttCommandPublisher != null && locker.getDevice() != null) {
                 LockerCommandPayload payload = new LockerCommandPayload(MqttCommandEnum.WAIT_FOR_DEPOSIT,
                         locker.getLockerCode(), 1000L);
                 try {

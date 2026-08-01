@@ -1,10 +1,7 @@
 package smartlocker.smartlocker.model;
 
 public enum OrderLockerStatus {
-    ASSIGNED,          // Tủ vừa được gán vào order (chưa xử lý gì)
-    WAIT_FOR_DEPOSIT,  // Đã gửi lệnh unlock, đang chờ người dùng bỏ đồ vào
-    PENDING,           // Cửa đã đóng lại đủ 3 giây → đồ đã được bỏ vào
-    ACTIVE,            // Đang sử dụng (đồ đã bên trong)
-    FAILED,            // Timeout 30 giây — người dùng không bỏ đồ vào
-    INACTIVE           // Hoàn thành / không còn hoạt động
+    WAIT_FOR_DEPOSIT,    // Đang chờ người gửi bỏ đồ vào tủ
+    WAIT_FOR_COLLECTION, // Đồ đã ở trong tủ, đang chờ người nhận lấy
+    INACTIVE             // Đã hoàn thành hoặc không còn giữ tủ
 }

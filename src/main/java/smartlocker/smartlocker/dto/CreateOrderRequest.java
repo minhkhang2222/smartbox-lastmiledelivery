@@ -7,6 +7,7 @@ public class CreateOrderRequest {
     private UUID userId;
     private UUID stationId;
     private List<UUID> lockerIds;
+    private String recipientPhoneNumber;
 
     public CreateOrderRequest() {
     }
@@ -39,5 +40,13 @@ public class CreateOrderRequest {
 
     public void setLockerIds(List<UUID> lockerIds) {
         this.lockerIds = lockerIds;
+    }
+
+    public String getRecipientPhoneNumber() {
+        return recipientPhoneNumber;
+    }
+
+    public void setRecipientPhoneNumber(String recipientPhoneNumber) {
+        this.recipientPhoneNumber = recipientPhoneNumber;
     }
 }

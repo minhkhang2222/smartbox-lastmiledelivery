@@ -6,7 +6,7 @@ import MainLayout from './components/MainLayout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import FaceEnrollment from './components/FaceEnrollment';
-import LockerStationView from './components/LockerStationView';
+import CreateOrder from './components/CreateOrder';
 
 export default function App() {
   return (
@@ -25,9 +25,11 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route index element={<CreateOrder />} />
+            <Route path="profile" element={<Dashboard />} />
             <Route path="enroll" element={<FaceEnrollment />} />
-            <Route path="lockers" element={<LockerStationView />} />
+            <Route path="lockers" element={<Navigate to="/" replace />} />
+            <Route path="order" element={<Navigate to="/" replace />} />
           </Route>
 
           {/* Fallback */}
@@ -37,4 +39,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

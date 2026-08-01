@@ -37,7 +37,9 @@ public class LockerService {
 
     public List<LockerResponseDto> getLockerDtosByStationId(UUID stationId) {
         List<Locker> lockers = lockerRepository.findByStationId(stationId);
-        List<OrderLockerStatus> activeStatuses = Arrays.asList(OrderLockerStatus.ACTIVE, OrderLockerStatus.ASSIGNED);
+        List<OrderLockerStatus> activeStatuses = Arrays.asList(
+                OrderLockerStatus.WAIT_FOR_DEPOSIT,
+                OrderLockerStatus.WAIT_FOR_COLLECTION);
 
         return lockers.stream().map(locker -> {
             Optional<OrderLocker> activeOrderOpt = orderLockerRepository
