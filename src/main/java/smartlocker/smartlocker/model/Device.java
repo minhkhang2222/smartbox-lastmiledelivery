@@ -16,6 +16,10 @@ public class Device {
     @Column(name = "device_code", unique = true, nullable = false)
     private String deviceCode;
 
+    /** Loại thiết bị. Chỉ dùng hai giá trị chuỗi: ESP32 hoặc RASPBERRY. */
+    @Column(name = "device_type", nullable = false, length = 20)
+    private String deviceType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private LockerStation station;
@@ -23,15 +27,19 @@ public class Device {
     @Column(name = "status", nullable = false)
     private String status; // e.g., ONLINE, OFFLINE, ERROR
 
+    @Column(name = "token", length = 255)
+    private String token;
+
     @OneToMany(mappedBy = "device", cascade = CascadeType.ALL)
     private List<Locker> lockers = new ArrayList<>();
 
     public Device() {
     }
 
-    public Device(UUID id, String deviceCode, LockerStation station, String status) {
+    public Device(UUID id, String deviceCode, String deviceType, LockerStation station, String status) {
         this.id = id;
         this.deviceCode = deviceCode;
+        this.deviceType = deviceType;
         this.station = station;
         this.status = status;
     }
@@ -52,6 +60,14 @@ public class Device {
         this.deviceCode = deviceCode;
     }
 
+    public String getDeviceType() {
+        return deviceType;
+    }
+
+    public void setDeviceType(String deviceType) {
+        this.deviceType = deviceType;
+    }
+
     public LockerStation getStation() {
         return station;
     }
@@ -66,6 +82,14 @@ public class Device {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public List<Locker> getLockers() {

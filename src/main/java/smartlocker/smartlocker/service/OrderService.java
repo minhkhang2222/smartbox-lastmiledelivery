@@ -48,14 +48,7 @@ public class OrderService {
             throw new IllegalArgumentException("Request payload không được null.");
         }
 
-        // Bước 1: userId tồn tại
-        if (request.getUserId() == null) {
-            throw new IllegalArgumentException("userId không được để trống.");
-        }
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy User với ID: " + request.getUserId()));
-
-        // Bước 2: stationId tồn tại và station đang ACTIVE
+        // Bước 1: stationId tồn tại và station đang ACTIVE
         if (request.getStationId() == null) {
             throw new IllegalArgumentException("stationId không được để trống.");
         }
@@ -66,13 +59,6 @@ public class OrderService {
         if (station.getStatus() == null || !"ACTIVE".equalsIgnoreCase(station.getStatus())) {
             throw new IllegalArgumentException(
                     "Trạm tủ ID " + request.getStationId() + " đang không ở trạng thái ACTIVE.");
-        }
-
-        // Bước 3: User có đăng ký ACTIVE tại station
-        boolean isUserRegisteredActive = registrationRepository.existsByUserIdAndStationIdAndStatus(
-                request.getUserId(), request.getStationId(), "ACTIVE");
-        if (!isUserRegisteredActive) {
-            throw new IllegalArgumentException("User chưa đăng ký trạng thái ACTIVE tại trạm tủ này.");
         }
 
         if (request.getRecipientPhoneNumber() == null || request.getRecipientPhoneNumber().isBlank()) {
@@ -133,9 +119,7 @@ public class OrderService {
         // TRANSACTION TẠO ORDER & GIỮ TỦ
         // 1. Tạo Order (status = WAITING_FOR_DEPOSIT)
         Order order = new Order();
-        order.setUser(user);
         order.setStation(station);
-        order.setSenderPhoneNumber(user.getPhoneNumber());
         order.setRecipientPhoneNumber(recipientPhoneNumber);
         order.setRecipientUser(recipientUser);
         order.setStatus(OrderStatus.WAITING_FOR_DEPOSIT);
@@ -156,15 +140,15 @@ public class OrderService {
             orderLocker.setStatus(OrderLockerStatus.WAIT_FOR_DEPOSIT);
             orderLockers.add(orderLocker);
 
-            // Gửi lệnh MQTT WAIT_FOR_DEPOSIT xuống station device cho tủ này
+            // ESP32 chỉ nhận lệnh vật lý, không giữ trạng thái order.
             if (mqttPublishEnabled && mqttCommandPublisher != null && locker.getDevice() != null) {
-                LockerCommandPayload payload = new LockerCommandPayload(MqttCommandEnum.WAIT_FOR_DEPOSIT,
+                LockerCommandPayload payload = new LockerCommandPayload(MqttCommandEnum.UNLOCK,
                         locker.getLockerCode(), 1000L);
                 try {
-                    mqttCommandPublisher.publishWaitForDepositCommand(locker.getDevice().getId(), station.getId(),
+                    mqttCommandPublisher.publishUnlockCommand(locker.getDevice().getId(), station.getId(),
                             payload);
                 } catch (Exception e) {
-                    System.err.println("Failed to publish MQTT WAIT_FOR_DEPOSIT command for locker "
+                    System.err.println("Failed to publish MQTT UNLOCK command for locker "
                             + locker.getLockerCode() + ": " + e.getMessage());
                 }
             }
@@ -174,7 +158,6 @@ public class OrderService {
 
         return new CreateOrderResponse(
                 savedOrder.getId(),
-                user.getId(),
                 station.getId(),
                 lockerIds,
                 savedOrder.getStatus(),

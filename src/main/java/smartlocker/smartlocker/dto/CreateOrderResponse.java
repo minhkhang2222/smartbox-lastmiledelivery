@@ -8,7 +8,6 @@ import java.util.UUID;
 
 public class CreateOrderResponse {
     private UUID orderId;
-    private UUID userId;
     private UUID stationId;
     private List<UUID> lockerIds;
     private OrderStatus status;
@@ -18,9 +17,8 @@ public class CreateOrderResponse {
     public CreateOrderResponse() {
     }
 
-    public CreateOrderResponse(UUID orderId, UUID userId, UUID stationId, List<UUID> lockerIds, OrderStatus status, LocalDateTime createdAt, LocalDateTime expiredAt) {
+    public CreateOrderResponse(UUID orderId, UUID stationId, List<UUID> lockerIds, OrderStatus status, LocalDateTime createdAt, LocalDateTime expiredAt) {
         this.orderId = orderId;
-        this.userId = userId;
         this.stationId = stationId;
         this.lockerIds = lockerIds;
         this.status = status;
@@ -34,14 +32,6 @@ public class CreateOrderResponse {
 
     public void setOrderId(UUID orderId) {
         this.orderId = orderId;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
     }
 
     public UUID getStationId() {

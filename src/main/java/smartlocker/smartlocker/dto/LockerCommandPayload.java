@@ -2,7 +2,7 @@ package smartlocker.smartlocker.dto;
 
 public class LockerCommandPayload {
 
-    private MqttCommandEnum commandType; // UNLOCK, LOCK, WAIT_FOR_DEPOSIT
+    private MqttCommandEnum commandType; // UNLOCK, LOCK
     private String lockerId; // e.g., LOCKER_05
     private Long durationMs;
 

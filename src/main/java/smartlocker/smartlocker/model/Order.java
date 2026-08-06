@@ -15,19 +15,12 @@ public class Order {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private LockerStation station;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipient_user_id")
     private User recipientUser;
-
-    @Column(name = "sender_phone_number", nullable = false)
-    private String senderPhoneNumber;
 
     @Column(name = "recipient_phone_number", nullable = false)
     private String recipientPhoneNumber;
@@ -51,9 +44,8 @@ public class Order {
     public Order() {
     }
 
-    public Order(UUID id, User user, LockerStation station, OrderStatus status, LocalDateTime createdAt, LocalDateTime expiredAt) {
+    public Order(UUID id, LockerStation station, OrderStatus status, LocalDateTime createdAt, LocalDateTime expiredAt) {
         this.id = id;
-        this.user = user;
         this.station = station;
         this.status = status;
         this.createdAt = createdAt;
@@ -66,14 +58,6 @@ public class Order {
 
     public void setId(UUID id) {
         this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
     }
 
     public LockerStation getStation() {
@@ -90,14 +74,6 @@ public class Order {
 
     public void setRecipientUser(User recipientUser) {
         this.recipientUser = recipientUser;
-    }
-
-    public String getSenderPhoneNumber() {
-        return senderPhoneNumber;
-    }
-
-    public void setSenderPhoneNumber(String senderPhoneNumber) {
-        this.senderPhoneNumber = senderPhoneNumber;
     }
 
     public String getRecipientPhoneNumber() {

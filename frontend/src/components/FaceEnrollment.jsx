@@ -5,10 +5,10 @@ import { apiClient } from '../utils/api';
 import './FaceEnrollment.css';
 
 const ANGLES = [
-  { id: 'front', label: 'Chính diện', short: 'Nhìn thẳng', icon: 'front' },
-  { id: 'left', label: 'Góc trái', short: 'Quay sang trái', icon: 'left' },
-  { id: 'right', label: 'Góc phải', short: 'Quay sang phải', icon: 'right' },
-  { id: 'up', label: 'Ngẩng nhẹ', short: 'Ngẩng mặt lên', icon: 'up' },
+  { id: 'front', label: 'Front', short: 'Look straight ahead', icon: 'front' },
+  { id: 'left', label: 'Left angle', short: 'Turn to your left', icon: 'left' },
+  { id: 'right', label: 'Right angle', short: 'Turn to your right', icon: 'right' },
+  { id: 'up', label: 'Look up', short: 'Raise your chin slightly', icon: 'up' },
 ];
 
 const MEDIAPIPE_VERSION = '0.10.22-rc.20250304';
@@ -101,11 +101,12 @@ export default function FaceEnrollment() {
   const holdStartRef = useRef(null);
   const captureLockRef = useRef(false);
   const lastVideoTimeRef = useRef(-1);
+  const cameraRequestedRef = useRef(false);
 
   const [phase, setPhase] = useState('ready');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [captures, setCaptures] = useState({});
-  const [message, setMessage] = useState('Đặt khuôn mặt vào giữa khung hình');
+  const [message, setMessage] = useState('Center your face in the frame');
   const [quality, setQuality] = useState(0);
   const [modelReady, setModelReady] = useState(false);
   const [error, setError] = useState('');
@@ -154,7 +155,7 @@ export default function FaceEnrollment() {
       return true;
     } catch (modelError) {
       console.error(modelError);
-      setError('Không thể tải bộ nhận diện khuôn mặt. Hãy kiểm tra kết nối mạng và thử lại.');
+      setError('Unable to load face detection. Check your connection and try again.');
       return false;
     }
   };
@@ -195,7 +196,7 @@ export default function FaceEnrollment() {
     if (currentIndex < ANGLES.length - 1) {
       setCurrentIndex((index) => index + 1);
       setQuality(0);
-      setMessage('Tốt lắm! Tiếp tục với góc tiếp theo');
+      setMessage('Great. Continue with the next angle');
       setTimeout(() => {
         captureLockRef.current = false;
         holdStartRef.current = null;
@@ -221,7 +222,7 @@ export default function FaceEnrollment() {
       const landmarks = results.faceLandmarks?.[0];
 
       if (!landmarks) {
-        setMessage('Chưa tìm thấy khuôn mặt');
+        setMessage('No face detected');
         setQuality(0);
         holdStartRef.current = null;
       } else {
@@ -233,15 +234,15 @@ export default function FaceEnrollment() {
         const correctAngle = meetsAngle(pose, ANGLES[currentIndex].id);
 
         if (!wellLit) {
-          setMessage(brightness <= 45 ? 'Di chuyển tới nơi sáng hơn' : 'Tránh ánh sáng chiếu trực tiếp');
+          setMessage(brightness <= 45 ? 'Move to a brighter area' : 'Avoid direct light on your face');
           setQuality(0);
           holdStartRef.current = null;
         } else if (!centered) {
-          setMessage('Đưa khuôn mặt vào giữa khung');
+          setMessage('Center your face in the frame');
           setQuality(0);
           holdStartRef.current = null;
         } else if (!rightSize) {
-          setMessage(pose.width <= 0.34 ? 'Di chuyển lại gần hơn một chút' : 'Di chuyển ra xa một chút');
+          setMessage(pose.width <= 0.34 ? 'Move a little closer' : 'Move a little farther away');
           setQuality(0);
           holdStartRef.current = null;
         } else if (!correctAngle) {
@@ -252,7 +253,7 @@ export default function FaceEnrollment() {
           if (!holdStartRef.current) holdStartRef.current = performance.now();
           const progress = Math.min((performance.now() - holdStartRef.current) / HOLD_TIME, 1);
           setQuality(progress);
-          setMessage(progress < 1 ? 'Giữ nguyên…' : 'Đã nhận diện');
+          setMessage(progress < 1 ? 'Hold still...' : 'Face detected');
           if (progress >= 1) takeSnapshot(ANGLES[currentIndex].id);
         }
       }
@@ -270,7 +271,8 @@ export default function FaceEnrollment() {
 
   const startCamera = async () => {
     setError('');
-    setMessage('Đang khởi động camera…');
+    setPhase('requesting');
+    setMessage('Starting camera...');
     try {
       const streamPromise = navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
@@ -287,12 +289,21 @@ export default function FaceEnrollment() {
       setPhase('scanning');
       setMessage(ANGLES[currentIndex].short);
     } catch (cameraError) {
+      setPhase('ready');
       const blocked = cameraError?.name === 'NotAllowedError';
       setError(blocked
-        ? 'Quyền camera đang bị chặn. Hãy cho phép camera trong cài đặt trình duyệt rồi thử lại.'
-        : 'Không tìm thấy camera. Hãy kiểm tra thiết bị và thử lại.');
+        ? 'Camera access is blocked. Allow camera access in your browser settings and try again.'
+        : 'No camera was found. Check your device and try again.');
     }
   };
+
+  useEffect(() => {
+    if (cameraRequestedRef.current || !navigator.mediaDevices?.getUserMedia) return;
+    cameraRequestedRef.current = true;
+    startCamera();
+    // Request camera permission only once when this screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const retryAngle = async (index) => {
     const nextCaptures = { ...captures };
@@ -301,7 +312,7 @@ export default function FaceEnrollment() {
     setCurrentIndex(index);
     setPhase('ready');
     setQuality(0);
-    setMessage('Đặt khuôn mặt vào giữa khung hình');
+    setMessage('Center your face in the frame');
   };
 
   const restart = () => {
@@ -310,12 +321,12 @@ export default function FaceEnrollment() {
     setPhase('ready');
     setQuality(0);
     setError('');
-    setMessage('Đặt khuôn mặt vào giữa khung hình');
+    setMessage('Center your face in the frame');
   };
 
   const finish = async () => {
     if (!user || !user.id) {
-      setError('Bạn cần đăng nhập trước khi thực hiện đăng ký khuôn mặt.');
+      setError('Sign in before enrolling your face.');
       return;
     }
 
@@ -348,11 +359,11 @@ export default function FaceEnrollment() {
       if (response.status === 200) {
         setPhase('success');
       } else {
-        setError('Đăng ký khuôn mặt thất bại. Vui lòng thử lại.');
+        setError('Face enrollment failed. Please try again.');
       }
     } catch (err) {
       console.error(err);
-      const errMsg = err.response?.data?.message || err.response?.data || 'Đã xảy ra lỗi khi gửi dữ liệu lên máy chủ.';
+      const errMsg = 'Unable to submit face data. Please try again.';
       setError(errMsg);
     } finally {
       setIsSubmitting(false);
@@ -362,24 +373,23 @@ export default function FaceEnrollment() {
   return (
     <main className="face-page">
       <header className="topbar">
-        <Link className="brand" to="/" aria-label="TrueID - Trang chủ">
+        <Link className="brand" to="/" aria-label="SmartLocker home">
           <span className="brand-mark"><ShieldIcon size={23} /></span>
-          <span>True<span>ID</span></span>
+          <span>Smart<span>Locker</span></span>
         </Link>
-        <div className="secure-note"><ShieldIcon size={17} /> Kết nối được bảo mật</div>
         <button className="help-button" type="button" onClick={() => setShowHelp(true)}>
-          <span>?</span> Trợ giúp
+          <span>?</span> Help
         </button>
       </header>
 
       <section className="enrollment-shell">
         <div className="intro-copy">
-          <span className="eyebrow">XÁC THỰC KHUÔN MẶT</span>
-          <h1>Đăng ký khuôn mặt</h1>
-          <p>Vui lòng thực hiện theo hướng dẫn để hoàn tất xác thực.</p>
+          <span className="eyebrow">FACE VERIFICATION</span>
+          <h1>Enroll your face</h1>
+          <p>Follow the instructions to complete secure face enrollment.</p>
         </div>
 
-        <div className="stepper" aria-label={`Bước ${currentIndex + 1} trên 4`}>
+        <div className="stepper" aria-label={`Step ${currentIndex + 1} of 4`}>
           {ANGLES.map((angle, index) => {
             const done = Boolean(captures[angle.id]);
             const active = index === currentIndex && phase !== 'success';
@@ -403,7 +413,7 @@ export default function FaceEnrollment() {
               <span className="success-badge">
                 <svg viewBox="0 0 24 24"><path d="m7 12 3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
-              <div><h2>Kiểm tra ảnh khuôn mặt</h2><p>Đảm bảo hình ảnh rõ nét trước khi hoàn tất.</p></div>
+              <div><h2>Review face photos</h2><p>Make sure every photo is clear before continuing.</p></div>
             </div>
             <div className="capture-grid">
               {ANGLES.map((angle, index) => (
@@ -417,22 +427,31 @@ export default function FaceEnrollment() {
               ))}
             </div>
             <div className="review-actions">
-              <button className="secondary-button" type="button" onClick={restart}>Chụp lại tất cả</button>
-              <button className="primary-button" type="button" onClick={finish}>
-                Hoàn tất đăng ký
-                <svg viewBox="0 0 20 20"><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <button className="secondary-button" type="button" onClick={restart} disabled={isSubmitting}>Retake all</button>
+              <button className="primary-button" type="button" onClick={finish} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="btn-spinner" /> Enrolling face...
+                  </>
+                ) : (
+                  <>
+                    Complete enrollment
+                    <svg viewBox="0 0 20 20"><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </>
+                )}
               </button>
             </div>
+
           </section>
         ) : phase === 'success' ? (
           <section className="success-card">
             <div className="success-rings">
               <div><svg viewBox="0 0 34 34"><path d="m9 17 5 5 11-11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
             </div>
-            <span className="eyebrow">HOÀN TẤT</span>
-            <h2>Đăng ký khuôn mặt thành công</h2>
-            <p>Bốn góc khuôn mặt đã được ghi nhận an toàn. Bạn có thể sử dụng khuôn mặt để xác thực từ bây giờ.</p>
-            <button className="primary-button success-button" type="button" onClick={() => navigate('/')}>Về trang chính</button>
+            <span className="eyebrow">COMPLETE</span>
+            <h2>Face enrollment successful</h2>
+            <p>All four face angles were recorded securely. You can now use face verification at a station.</p>
+            <button className="primary-button success-button" type="button" onClick={() => navigate('/')}>Back to profile</button>
           </section>
         ) : (
           <section className="camera-card">
@@ -448,8 +467,15 @@ export default function FaceEnrollment() {
               {phase === 'ready' && (
                 <div className="camera-placeholder">
                   <div className="placeholder-face"><FaceGlyph direction={currentAngle.icon} /></div>
-                  <h2>{captures[currentAngle.id] ? 'Chụp lại góc mặt' : 'Sẵn sàng xác thực'}</h2>
-                  <p>Camera chỉ được bật sau khi bạn cho phép.</p>
+                  <h2>{captures[currentAngle.id] ? 'Retake this angle' : 'Ready to verify'}</h2>
+                  <p>The camera starts only after you grant permission.</p>
+                </div>
+              )}
+              {phase === 'requesting' && (
+                <div className="camera-placeholder permission-loading" role="status">
+                  <span className="permission-spinner" />
+                  <h2>Requesting camera access</h2>
+                  <p>Select “Allow” in your browser prompt.</p>
                 </div>
               )}
               <div className={`camera-flash ${flash ? 'show' : ''}`} />
@@ -469,29 +495,27 @@ export default function FaceEnrollment() {
               <div className="angle-instruction">
                 <div className="angle-number">{currentIndex + 1}</div>
                 <div>
-                  <span>BƯỚC {currentIndex + 1} / 4</span>
+                  <span>STEP {currentIndex + 1} / 4</span>
                   <h2>{currentAngle.short}</h2>
                 </div>
                 <FaceGlyph direction={currentAngle.icon} active />
               </div>
               <div className="hold-progress" aria-hidden="true"><span style={{ width: `${quality * 100}%` }} /></div>
               <div className="tips">
-                <span><i className="light-icon">☼</i> Đủ ánh sáng</span>
-                <span><i className="glasses-icon">⌁</i> Bỏ kính & khẩu trang</span>
-                <span><i className="still-icon">◎</i> Giữ yên thiết bị</span>
+                <span><i className="light-icon">☼</i> Good lighting</span>
+                <span><i className="glasses-icon">⌁</i> Remove glasses and mask</span>
+                <span><i className="still-icon">◎</i> Hold device still</span>
               </div>
               {error && <div className="error-message" role="alert">{error}</div>}
               {phase === 'ready' && (
                 <button className="primary-button start-button" type="button" onClick={startCamera}>
                   <svg viewBox="0 0 22 22"><path d="M6 7.5 7.5 5h7L16 7.5h2A2 2 0 0 1 20 9.5v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h2Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="11" cy="13" r="3" fill="none" stroke="currentColor" strokeWidth="1.7" /></svg>
-                  Cho phép camera
+                  Allow camera
                 </button>
               )}
             </div>
           </section>
         )}
-
-        <p className="privacy-copy"><ShieldIcon size={16} /> Dữ liệu khuôn mặt của bạn được mã hóa và bảo vệ theo tiêu chuẩn bảo mật.</p>
       </section>
 
       <canvas ref={canvasRef} hidden />
@@ -499,16 +523,16 @@ export default function FaceEnrollment() {
       {showHelp && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowHelp(false)}>
           <section className="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="modal-close" type="button" onClick={() => setShowHelp(false)} aria-label="Đóng">×</button>
+            <button className="modal-close" type="button" onClick={() => setShowHelp(false)} aria-label="Close">×</button>
             <span className="brand-mark"><ShieldIcon size={24} /></span>
-            <h2 id="help-title">Mẹo để xác thực nhanh</h2>
+            <h2 id="help-title">Tips for faster verification</h2>
             <ol>
-              <li>Đứng ở nơi đủ sáng, tránh ánh sáng mạnh phía sau.</li>
-              <li>Giữ điện thoại ngang tầm mắt và cách mặt khoảng 30–40 cm.</li>
-              <li>Bỏ kính, khẩu trang, mũ và giữ tóc không che khuôn mặt.</li>
-              <li>Di chuyển đầu chậm theo chỉ dẫn, hệ thống sẽ tự chụp.</li>
+              <li>Stand in a well-lit area and avoid strong backlighting.</li>
+              <li>Keep the device at eye level, about 30–40 cm from your face.</li>
+              <li>Remove glasses, masks, and hats, and keep hair away from your face.</li>
+              <li>Move your head slowly as instructed; photos are captured automatically.</li>
             </ol>
-            <button className="primary-button" type="button" onClick={() => setShowHelp(false)}>Đã hiểu</button>
+            <button className="primary-button" type="button" onClick={() => setShowHelp(false)}>Got it</button>
           </section>
         </div>
       )}

@@ -1,3 +1,11 @@
+import os
+# Prevent OpenMP / ONNX Runtime thread affinity error inside Docker containers
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
+
 import cv2
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -6,12 +14,13 @@ import insightface
 
 app = FastAPI(title="Core AI Embedding Extraction Microservice")
 
-# Initialize InsightFace model
-# we specify name='buffalo_l' which has been downloaded and is ready in user profile.
-print("[CoreAI] Initializing InsightFace model analysis...")
-face_analyzer = insightface.app.FaceAnalysis(name='buffalo_l')
-face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
-print("[CoreAI] InsightFace model initialized successfully.")
+
+# Initialize InsightFace model with CPU execution provider as default
+print("[CoreAI] Initializing InsightFace model analysis (CPU mode)...")
+face_analyzer = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+face_analyzer.prepare(ctx_id=-1, det_size=(640, 640))
+print("[CoreAI] InsightFace model initialized successfully on CPU.")
+
 
 def l2_normalize(v: np.ndarray) -> np.ndarray:
     """Return a unit vector (safe against zero-norm)."""

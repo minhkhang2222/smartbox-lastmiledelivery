@@ -910,3 +910,37 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* EIU design-system alignment */
+.face-page { --green: var(--color-brand-800); --green-dark: var(--color-brand-900); --green-soft: var(--color-brand-100); --ink: var(--color-neutral-900); --muted: var(--color-neutral-600); background: var(--color-neutral-50); }
+.topbar { background: var(--color-white); border-bottom-color: var(--color-neutral-200); backdrop-filter: none; }
+.brand-mark { border-radius: var(--radius-md); background: var(--color-brand-800); box-shadow: var(--shadow-xs); }
+.camera-card, .review-card, .success-card { border-color: var(--color-neutral-200); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.camera-stage { background: var(--color-neutral-800); }
+.camera-gradient { background: rgba(0, 24, 48, .28); }
+.step-dot, .angle-number, .tips i, .capture-tile, .help-modal, .status-pill { border-radius: var(--radius-md); }
+.primary-button { min-height: 46px; border-radius: var(--radius-sm); background: var(--color-brand-800); font-family: var(--font-heading); font-size: var(--text-sm); font-weight: 700; box-shadow: none; }
+.primary-button:hover { background: var(--color-brand-900); }
+.secondary-button { min-height: 46px; border: 1px solid var(--color-brand-800); border-radius: var(--radius-sm); background: var(--color-white); color: var(--color-brand-800); font-size: var(--text-sm); }
+.secondary-button:hover { background: var(--color-brand-100); }
+.status-pill { background: var(--color-brand-900); border: 1px solid rgba(255,255,255,.28); backdrop-filter: none; }
+.tips span, .angle-instruction h2, .intro-copy p, .privacy-copy, .camera-placeholder p { font-size: var(--text-sm); }
+.permission-loading { z-index: 4; background: var(--color-neutral-800); }
+.permission-spinner { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,.35); border-top-color: var(--color-white); border-radius: var(--radius-full); animation: permission-spin .8s linear infinite; }
+@keyframes permission-spin { to { transform: rotate(360deg); } }
+
+.btn-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+

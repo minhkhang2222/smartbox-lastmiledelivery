@@ -2,6 +2,7 @@ package smartlocker.smartlocker.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import smartlocker.smartlocker.model.Order;
 import smartlocker.smartlocker.model.OrderStatus;
@@ -12,9 +13,9 @@ import java.util.UUID;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, UUID> {
 
-    List<Order> findByUserIdAndStationId(UUID userId, UUID stationId);
+    List<Order> findByRecipientUserIdAndStationId(UUID userId, UUID stationId);
 
-    List<Order> findByUserId(UUID userId);
+    List<Order> findByRecipientUserIdOrderByCreatedAtDesc(UUID recipientUserId);
 
     /**
      * Tìm tất cả Order đang ở trạng thái WAITING_FOR_DEPOSIT.
@@ -22,3 +23,4 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      */
     List<Order> findByStatus(OrderStatus status);
 }
+

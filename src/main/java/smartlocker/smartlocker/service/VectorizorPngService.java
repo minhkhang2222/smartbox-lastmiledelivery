@@ -2,9 +2,8 @@ package smartlocker.smartlocker.service;
 
 import java.io.IOException;
 
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -17,6 +16,9 @@ import smartlocker.smartlocker.dto.FaceResponse;
 public class VectorizorPngService {
 
     private final RestClient restClient;
+
+    @Value("${ai.service.url:http://localhost:9001/vectorize}")
+    private String aiServiceUrl;
 
     public VectorizorPngService(RestClient restClient) {
         this.restClient = restClient;
@@ -32,7 +34,7 @@ public class VectorizorPngService {
 
         try {
             FaceResponse response = restClient.post()
-                    .uri("http://localhost:9001/vectorize")
+                    .uri(aiServiceUrl)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(body)
                     .retrieve()

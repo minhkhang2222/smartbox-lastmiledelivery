@@ -16,6 +16,8 @@ import smartlocker.smartlocker.model.UserFaceEmbedding;
 import smartlocker.smartlocker.repository.UserFaceEmbeddingRepo;
 import smartlocker.smartlocker.repository.UserRepository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class FaceAuthRegService {
     private final VectorizorPngService vectorizorPngService;
@@ -29,6 +31,7 @@ public class FaceAuthRegService {
         this.faceEmbeddingRepo = faceEmbeddingRepo;
     }
 
+    @Transactional
     public void faceAuthRegister(FaceEnrollmentRequest request) throws IOException {
         // 1. Tìm user
         User user = userRepository.findById(request.getUserId())
@@ -59,6 +62,10 @@ public class FaceAuthRegService {
         List<ProcessedEmbedding> results = allOf.thenApply(v -> futures.stream().map(CompletableFuture::join).toList())
                 .join();
 
+        // 3. Xoá tất cả các vector nhúng cũ của user này trước khi lưu mới
+        faceEmbeddingRepo.deleteByUser(user);
+
+        // 4. Lưu danh sách các vector nhúng mới
         for (ProcessedEmbedding res : results) {
             UserFaceEmbedding userFace = new UserFaceEmbedding();
             userFace.setUser(user);
@@ -68,6 +75,7 @@ public class FaceAuthRegService {
             faceEmbeddingRepo.save(userFace);
         }
     }
+
 
 }
 

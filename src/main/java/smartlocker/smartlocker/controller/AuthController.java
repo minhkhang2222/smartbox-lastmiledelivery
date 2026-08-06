@@ -49,7 +49,8 @@ public class AuthController {
             User user = userOpt.get();
             // So khớp mật khẩu đã băm trong database
             if (passwordEncoder.matches(password, user.getPasswordHash())) {
-                String token = jwtUtil.generateToken(user.getId(), username, user.getFullName(), "USER");
+                String role = user.getRole() != null ? user.getRole() : "USER";
+                String token = jwtUtil.generateToken(user.getId(), username, user.getFullName(), role);
                 return ResponseEntity.ok(new LoginResponse(token, "Đăng nhập thành công!"));
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

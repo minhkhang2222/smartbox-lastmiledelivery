@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.UUID;
 
 public class CreateOrderRequest {
-    private UUID userId;
     private UUID stationId;
     private List<UUID> lockerIds;
     private String recipientPhoneNumber;
@@ -12,18 +11,10 @@ public class CreateOrderRequest {
     public CreateOrderRequest() {
     }
 
-    public CreateOrderRequest(UUID userId, UUID stationId, List<UUID> lockerIds) {
-        this.userId = userId;
+    public CreateOrderRequest(UUID stationId, List<UUID> lockerIds, String recipientPhoneNumber) {
         this.stationId = stationId;
         this.lockerIds = lockerIds;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
+        this.recipientPhoneNumber = recipientPhoneNumber;
     }
 
     public UUID getStationId() {

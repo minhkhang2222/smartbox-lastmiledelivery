@@ -2,8 +2,7 @@ package smartlocker.smartlocker.dto;
 
 public enum MqttCommandEnum {
     UNLOCK("UNLOCK"),
-    LOCK("LOCK"),
-    WAIT_FOR_DEPOSIT("WAIT_FOR_DEPOSIT");
+    LOCK("LOCK");
 
     private final String command;
 

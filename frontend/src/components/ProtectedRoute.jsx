@@ -32,7 +32,7 @@ export default function ProtectedRoute({ children }) {
               100% { transform: rotate(360deg); }
             }
           `}</style>
-          <div>Đang xác thực tài khoản...</div>
+          <div>Verifying your account...</div>
         </div>
       </div>
     );

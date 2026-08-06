@@ -26,7 +26,7 @@ public interface OrderLockerRepository extends JpaRepository<OrderLocker, UUID> 
 
     /**
      * Tìm OrderLocker đang WAIT_FOR_DEPOSIT theo lockerCode và stationId.
-     * Dùng khi nhận event door_closed từ MQTT.
+     * Dùng khi nhận tín hiệu LOCK từ ESP32 qua MQTT.
      */
     @Query("""
         SELECT ol FROM OrderLocker ol

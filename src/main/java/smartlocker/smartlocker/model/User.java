@@ -25,11 +25,14 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "role", nullable = false)
+    private String role = "USER";
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserFaceEmbedding> faceEmbeddings = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Order> orders = new ArrayList<>();
+    @OneToMany(mappedBy = "recipientUser", cascade = CascadeType.ALL)
+    private List<Order> receivedOrders = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserStationRegistration> registrations = new ArrayList<>();
@@ -85,6 +88,14 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public List<UserFaceEmbedding> getFaceEmbeddings() {
         return faceEmbeddings;
     }
@@ -93,12 +104,12 @@ public class User {
         this.faceEmbeddings = faceEmbeddings;
     }
 
-    public List<Order> getOrders() {
-        return orders;
+    public List<Order> getReceivedOrders() {
+        return receivedOrders;
     }
 
-    public void setOrders(List<Order> orders) {
-        this.orders = orders;
+    public void setReceivedOrders(List<Order> receivedOrders) {
+        this.receivedOrders = receivedOrders;
     }
 
     public List<UserStationRegistration> getRegistrations() {

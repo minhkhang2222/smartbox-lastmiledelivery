@@ -3,12 +3,10 @@ package smartlocker.smartlocker.service;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import smartlocker.smartlocker.ENUM.LockerEventType;
-import smartlocker.smartlocker.dto.LockerEventPayload;
-import smartlocker.smartlocker.model.Order;
+import smartlocker.smartlocker.dto.LockerCommandPayload;
+import smartlocker.smartlocker.dto.MqttCommandEnum;
 import smartlocker.smartlocker.model.OrderLocker;
 import smartlocker.smartlocker.model.OrderLockerStatus;
-import smartlocker.smartlocker.model.OrderStatus;
 import smartlocker.smartlocker.repository.OrderLockerRepository;
 import tools.jackson.databind.ObjectMapper;
 
@@ -21,13 +19,16 @@ public class MqttEventListener {
     private final MqttService mqttService;
     private final ObjectMapper objectMapper;
     private final OrderLockerRepository orderLockerRepository;
+    private final OrderOtpService orderOtpService;
 
     public MqttEventListener(MqttService mqttService,
             ObjectMapper objectMapper,
-            OrderLockerRepository orderLockerRepository) {
+            OrderLockerRepository orderLockerRepository,
+            OrderOtpService orderOtpService) {
         this.mqttService = mqttService;
         this.objectMapper = objectMapper;
         this.orderLockerRepository = orderLockerRepository;
+        this.orderOtpService = orderOtpService;
     }
 
     @PostConstruct
@@ -39,7 +40,7 @@ public class MqttEventListener {
         });
     }
 
-    private void handleEvent(String topic, String message) {
+    void handleEvent(String topic, String message) {
         try {
             // Parse stationId từ topic: smartlocker/{stationId}/{deviceId}/event
             String[] parts = topic.split("/");
@@ -49,18 +50,17 @@ public class MqttEventListener {
             }
             UUID stationId = UUID.fromString(parts[1]);
 
-            LockerEventPayload payload = objectMapper.readValue(message, LockerEventPayload.class);
+            LockerCommandPayload payload = objectMapper.readValue(message, LockerCommandPayload.class);
 
-            if (payload.getEventType() == null) {
-                System.err.println("[MqttEventListener] eventType is null in payload: " + message);
+            if (payload.getCommandType() == null) {
+                System.err.println("[MqttEventListener] commandType is null in payload: " + message);
                 return;
             }
 
-            switch (payload.getEventType()) {
-                case DOOR_CLOSED -> handleDoorClosed(stationId, payload);
-                case DOOR_OPENED -> System.out.println("[MqttEventListener] DOOR_OPENED for locker: "
-                        + payload.getLockerCode() + " (no action needed)");
-                default -> System.out.println("[MqttEventListener] Unknown event type: " + payload.getEventType());
+            if (payload.getCommandType() == MqttCommandEnum.LOCK) {
+                handleLock(stationId, payload);
+            } else {
+                System.out.println("[MqttEventListener] Ignoring device command: " + payload.getCommandType());
             }
 
         } catch (Exception e) {
@@ -69,15 +69,15 @@ public class MqttEventListener {
     }
 
     /**
-     * Xử lý event cửa tủ đóng lại đủ 3 giây (debounce tại ESP).
+     * Xử lý LOCK sau khi cửa tủ đóng ổn định (debounce tại ESP).
      * Tìm OrderLocker đang WAIT_FOR_DEPOSIT, chuyển thành WAIT_FOR_COLLECTION.
-     * Race condition safe: chỉ update nếu vẫn đang WAIT_FOR_DEPOSIT.
+     * LOCK không khớp order đang chờ được bỏ qua vì ESP không giữ trạng thái order.
      */
     @Transactional
-    void handleDoorClosed(UUID stationId, LockerEventPayload payload) {
-        String lockerCode = payload.getLockerCode();
+    void handleLock(UUID stationId, LockerCommandPayload payload) {
+        String lockerCode = payload.getLockerId();
         if (lockerCode == null || lockerCode.isBlank()) {
-            System.err.println("[MqttEventListener] DOOR_CLOSED missing lockerCode");
+            System.err.println("[MqttEventListener] LOCK missing lockerId");
             return;
         }
 
@@ -85,8 +85,8 @@ public class MqttEventListener {
                 .findWaitingForDepositByLockerCodeAndStation(lockerCode, stationId);
 
         if (optOrderLocker.isEmpty()) {
-            System.out.println("[MqttEventListener] No WAIT_FOR_DEPOSIT OrderLocker found for locker "
-                    + lockerCode + " at station " + stationId + " (possibly already FAILED or no active order)");
+            System.out.println("[MqttEventListener] Ignoring LOCK for locker " + lockerCode
+                    + " at station " + stationId + ": no WAIT_FOR_DEPOSIT order");
             return;
         }
 
@@ -102,7 +102,12 @@ public class MqttEventListener {
         orderLocker.setStatus(OrderLockerStatus.WAIT_FOR_COLLECTION);
         orderLockerRepository.save(orderLocker);
 
+        if (orderLocker.getOrder() != null
+                && orderLockerRepository.countWaitingForDeposit(orderLocker.getOrder().getId()) == 0) {
+            orderOtpService.createOtp(orderLocker.getOrder().getId());
+        }
+
         System.out.println("[MqttEventListener] OrderLocker " + orderLocker.getId()
-                + " (locker=" + lockerCode + ") → WAIT_FOR_COLLECTION. Door closed confirmed.");
+                + " (locker=" + lockerCode + ") → WAIT_FOR_COLLECTION. LOCK confirmed.");
     }
 }

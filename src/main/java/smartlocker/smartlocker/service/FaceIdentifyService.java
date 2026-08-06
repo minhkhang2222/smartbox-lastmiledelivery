@@ -14,7 +14,7 @@ import smartlocker.smartlocker.repository.UserRepository;
  */
 @Service
 public class FaceIdentifyService {
-    private double distanceAcceptThreshold = 0.30;
+    private double distanceAcceptThreshold = 0.36;
     private final UserFaceEmbeddingRepo userFaceEmbeddingRepo;
     private final UserRepository userRepository;
 

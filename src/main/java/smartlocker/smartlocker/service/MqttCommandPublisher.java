@@ -35,7 +35,4 @@ public class MqttCommandPublisher {
         publishCommand(deviceId, stationId, payload);
     }
 
-    public void publishWaitForDepositCommand(UUID deviceId, UUID stationId, LockerCommandPayload payload) {
-        publishCommand(deviceId, stationId, payload);
-    }
 }

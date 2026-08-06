@@ -1,0 +1,66 @@
+services:
+  db:
+    image: khang53863/smartlocker-db:latest
+    build: ./docker/postgres
+    container_name: smartlocker_db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: smartlocker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretpassword}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d smartlocker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-service:
+    image: khang53863/smartlocker-ai:latest
+    build: ./microservice/ApiLayer
+    container_name: smartlocker_ai
+    restart: unless-stopped
+
+    expose:
+      - "9001"
+
+  backend:
+    image: khang53863/smartlocker-backend:latest
+    build: .
+    container_name: smartlocker_backend
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartlocker
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-secretpassword}
+      AI_SERVICE_URL: http://ai-service:9001/vectorize
+
+    expose:
+      - "8080"
+
+  web:
+    image: khang53863/smartlocker-web:latest
+    build: ./frontend
+    container_name: smartlocker_web
+    restart: unless-stopped
+
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

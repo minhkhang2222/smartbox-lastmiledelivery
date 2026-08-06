@@ -40,10 +40,10 @@ export const AuthProvider = ({ children }) => {
         setToken(data.token);
         return { success: true };
       } else {
-        return { success: false, error: data.message || 'Đăng nhập thất bại!' };
+        return { success: false, error: 'Sign-in failed. Check your credentials.' };
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Không thể kết nối đến máy chủ!';
+      const errorMsg = err.response ? 'Sign-in failed. Check your credentials.' : 'Unable to connect to the server.';
       return { success: false, error: errorMsg };
     }
   };
@@ -54,13 +54,24 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (profile) => {
+    setUser((current) => current ? {
+      ...current,
+      name: profile.fullName || current.name,
+      email: profile.email || '',
+      phoneNumber: profile.phoneNumber || '',
+    } : current);
+  };
+
   const value = {
     user,
     token,
     loading,
     login,
     logout,
-    isAuthenticated: !!user
+    updateUser,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'ADMIN',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

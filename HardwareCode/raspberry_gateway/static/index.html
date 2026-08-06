@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#003B71" />
+    <title>Smart Locker · Station Terminal</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="application-header">
+      <div class="container header-content">
+        <div class="brand" aria-label="Smart Locker">
+          <span class="brand-symbol" aria-hidden="true">SL</span>
+          <span class="brand-copy"><strong>Smart Locker</strong><small id="station-name">Loading station...</small></span>
+        </div>
+        <div class="header-status">
+          <span id="station-id" class="station-id"></span>
+          <div id="connection" class="connection connection-waiting" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span><span class="connection-label">Connecting</span>
+          </div>
+          <button id="refresh-button" class="header-refresh" type="button" aria-busy="false"><span class="button-label">Refresh</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container station-main">
+      <nav class="mode-tabs" aria-label="Station operation">
+        <button id="create-tab" class="mode-tab active" type="button" role="tab" aria-selected="true" aria-controls="create-panel">Create Order</button>
+        <button id="pickup-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="pickup-panel">PickUp Order</button>
+      </nav>
+
+      <section id="create-panel" class="mode-panel" role="tabpanel" aria-labelledby="create-tab">
+        <div id="order-message" class="alert hidden" role="alert" aria-live="assertive"></div>
+        <form id="order-form" class="create-layout">
+          <section class="locker-workspace" aria-labelledby="locker-title">
+            <div class="section-heading">
+              <div><p class="section-label">AVAILABLE COMPARTMENTS</p><h1 id="locker-title">Choose your lockers</h1><p>Select one or more available compartments.</p></div>
+              <p id="locker-summary" class="summary">—</p>
+            </div>
+            <div class="locker-legend" aria-label="Locker status legend">
+              <span><i class="legend-dot available"></i>Available</span><span><i class="legend-dot selected"></i>Selected</span><span><i class="legend-dot unavailable"></i>In use</span>
+            </div>
+            <div id="locker-grid" class="locker-grid" aria-live="polite"><div class="empty-state"><strong>Loading lockers</strong><span>Please wait a moment.</span></div></div>
+            <p id="locker-updated" class="updated"></p>
+          </section>
+
+          <aside class="card create-order-card" aria-labelledby="order-title">
+            <div><p class="section-label">ORDER DETAILS</p><h2 id="order-title">Receiver information</h2><p class="supporting-copy">Enter the recipient phone number to create the order.</p></div>
+            <div class="form-block">
+              <label class="field-label" for="recipient-phone">Recipient phone number <span aria-hidden="true">*</span></label>
+              <input id="recipient-phone" class="input" type="tel" inputmode="tel" autocomplete="tel" placeholder="Example: 0987654321" required />
+              <p class="field-help">The recipient is linked automatically when this number belongs to an account.</p>
+            </div>
+            <dl class="order-review"><div><dt>Selected lockers</dt><dd id="selected-count">0</dd></div><div><dt>Compartments</dt><dd id="selected-codes">None selected</dd></div></dl>
+            <button id="create-order-button" class="button-primary" type="submit" disabled aria-busy="false"><span class="button-label">Create Order</span></button>
+            <p id="order-result" class="action-result" role="status" aria-live="polite"></p>
+          </aside>
+        </form>
+      </section>
+
+      <section id="pickup-panel" class="mode-panel" role="tabpanel" aria-labelledby="pickup-tab" hidden>
+        <div class="pickup-layout">
+          <form id="otp-form" class="card pickup-method otp-method">
+            <div class="method-icon otp-icon" aria-hidden="true">123</div>
+            <p class="section-label">ONE-TIME PASSWORD</p>
+            <h1>Enter your pickup OTP</h1>
+            <p class="supporting-copy">Use the code sent to the recipient phone number.</p>
+            <label class="field-label" for="pickup-otp">Pickup OTP</label>
+            <input id="pickup-otp" class="input otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="Enter OTP" required />
+            <button id="otp-button" class="button-primary" type="submit" aria-busy="false"><span class="button-label">Verify OTP</span></button>
+            <p id="otp-result" class="action-result" role="status" aria-live="polite"></p>
+          </form>
+
+          <section class="card pickup-method face-method" aria-labelledby="face-pickup-title">
+            <div><p class="section-label">FACE ID</p><h2 id="face-pickup-title">Pick up with your face</h2><p class="supporting-copy">Look directly at the camera to unlock every active pickup locker at this station.</p></div>
+            <div id="pickup-camera-slot" class="camera-slot">
+              <div id="camera-block" class="camera-block">
+                <div class="camera-title-row"><span id="camera-badge" class="badge badge-waiting">Starting</span><span>Live camera</span></div>
+                <div class="camera-frame">
+                  <img id="camera-stream" alt="Live camera used for face verification at this station" />
+                  <div class="face-guide" aria-hidden="true"></div>
+                  <div id="camera-error" class="camera-error hidden"><strong>No camera signal</strong><span>Check the camera or Raspberry Pi configuration.</span></div>
+                </div>
+                <p class="camera-hint">Center your face and look directly at the camera.</p>
+              </div>
+            </div>
+            <button id="face-auth-button" class="button-primary" type="button" aria-busy="false"><span class="button-label">Verify Face ID</span></button>
+            <p id="face-auth-result" class="action-result" role="status" aria-live="polite"></p>
+          </section>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="application-footer"><div class="container">Smart Locker · Station device system</div></footer>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

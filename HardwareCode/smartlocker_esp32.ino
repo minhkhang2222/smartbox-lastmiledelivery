@@ -1,13 +1,12 @@
 /*
  * SmartLocker ESP32 Firmware
  *
- * Luồng WAIT_FOR_DEPOSIT:
- *  1. Server gửi MQTT command: WAIT_FOR_DEPOSIT + lockerCode
- *  2. ESP unlock tủ ngay lập tức
- *  3. Chờ 1 giây (để cửa mở ra trước khi bắt đầu monitor)
- *  4. Bắt đầu theo dõi sensor cửa tủ đó
- *  5. Nếu cửa đóng liên tục ≥ 3 giây → gửi MQTT event: DOOR_CLOSED
- *  6. Nếu cửa không đóng → không gửi gì (server tự timeout 30s)
+ * Luồng stateless theo order:
+ *  1. Server gửi MQTT command UNLOCK + lockerId sau khi tạo order.
+ *  2. ESP mở đúng tủ nhưng không lưu order hay phiên gửi hàng.
+ *  3. ESP luôn theo dõi cảm biến của mọi tủ.
+ *  4. Khi cửa đóng ổn định >= 3 giây, ESP khóa tủ và publish LOCK.
+ *  5. Server quyết định LOCK có khớp order đang chờ hay không.
  *
  * Topic Subscribe: smartlocker/{stationId}/{deviceId}/command
  * Topic Publish:   smartlocker/{stationId}/{deviceId}/event
@@ -49,16 +48,13 @@ const LockerConfig LOCKERS[] = {
 const int LOCKER_COUNT = sizeof(LOCKERS) / sizeof(LOCKERS[0]);
 
 // ==================== MONITORING STATE ====================
-struct MonitorState {
-    bool     active;          // Đang theo dõi tủ này không
-    char     lockerCode[16];  // Code của tủ đang theo dõi
-    unsigned long startMs;    // Thời điểm bắt đầu monitor (sau 1s delay)
+struct DoorState {
     bool     doorClosedStart; // Cửa có đang đóng không
     unsigned long doorClosedSince; // Thời điểm cửa bắt đầu đóng
-    bool     eventSent;       // Đã gửi DOOR_CLOSED event chưa
+    bool     lockPublished;   // Đã gửi LOCK cho lần đóng cửa hiện tại chưa
 };
 
-MonitorState monitors[LOCKER_COUNT];
+DoorState doorStates[LOCKER_COUNT];
 
 // ==================== MQTT ====================
 WiFiClient wifiClient;
@@ -68,7 +64,6 @@ char topicCommand[128];
 char topicEvent[128];
 
 // ==================== TIMING ====================
-const unsigned long UNLOCK_TO_MONITOR_DELAY_MS = 1000; // 1 giây
 const unsigned long DOOR_CLOSED_CONFIRM_MS      = 3000; // 3 giây liên tục
 const int           DOOR_CLOSED_STATE           = HIGH; // HIGH = đóng (tuỳ reed switch)
 const int           DOOR_OPEN_STATE             = LOW;
@@ -77,12 +72,11 @@ const int           DOOR_OPEN_STATE             = LOW;
 void connectWifi();
 void connectMqtt();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
-void handleWaitForDeposit(const char* lockerCode);
 void unlockLocker(int lockerIndex);
 void lockLocker(int lockerIndex);
 int  findLockerIndex(const char* code);
-void publishDoorClosedEvent(const char* lockerCode);
-void checkMonitors();
+void publishLockCommand(const char* lockerCode);
+void checkDoors();
 
 // ==================== SETUP ====================
 void setup() {
@@ -95,8 +89,10 @@ void setup() {
         digitalWrite(LOCKERS[i].solenoidPin, LOW); // mặc định khóa
         pinMode(LOCKERS[i].reedSwitchPin, INPUT_PULLUP);
 
-        monitors[i].active = false;
-        monitors[i].eventSent = false;
+        bool initiallyClosed = digitalRead(LOCKERS[i].reedSwitchPin) == DOOR_CLOSED_STATE;
+        doorStates[i].doorClosedStart = initiallyClosed;
+        doorStates[i].doorClosedSince = millis();
+        doorStates[i].lockPublished = initiallyClosed;
     }
 
     connectWifi();
@@ -120,7 +116,7 @@ void loop() {
         connectMqtt();
     }
     mqttClient.loop();
-    checkMonitors(); // Kiểm tra trạng thái cửa các tủ đang monitor
+    checkDoors();
 }
 
 // ==================== WIFI ====================
@@ -179,9 +175,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    if (strcmp(commandType, "WAIT_FOR_DEPOSIT") == 0) {
-        handleWaitForDeposit(lockerCode);
-    } else if (strcmp(commandType, "UNLOCK") == 0) {
+    if (strcmp(commandType, "UNLOCK") == 0) {
         int idx = findLockerIndex(lockerCode);
         if (idx >= 0) unlockLocker(idx);
     } else if (strcmp(commandType, "LOCK") == 0) {
@@ -193,96 +187,53 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 }
 
-// ==================== WAIT FOR DEPOSIT HANDLER ====================
-void handleWaitForDeposit(const char* lockerCode) {
-    int idx = findLockerIndex(lockerCode);
-    if (idx < 0) {
-        Serial.print("[WaitForDeposit] Locker not found: ");
-        Serial.println(lockerCode);
-        return;
-    }
-
-    Serial.print("[WaitForDeposit] Unlocking locker: ");
-    Serial.println(lockerCode);
-
-    // 1. Unlock ngay lập tức (dù không biết trạng thái hiện tại)
-    unlockLocker(idx);
-
-    // 2. Chờ 1 giây để cửa kịp mở ra trước khi bắt đầu theo dõi
-    //    (blocking delay ngắn, OK vì chỉ 1s)
-    delay(UNLOCK_TO_MONITOR_DELAY_MS);
-
-    // 3. Kích hoạt monitor cho tủ này
-    monitors[idx].active         = true;
-    monitors[idx].doorClosedStart = false;
-    monitors[idx].doorClosedSince = 0;
-    monitors[idx].eventSent      = false;
-    monitors[idx].startMs        = millis();
-    strncpy(monitors[idx].lockerCode, lockerCode, sizeof(monitors[idx].lockerCode) - 1);
-
-    Serial.print("[WaitForDeposit] Monitoring started for locker: ");
-    Serial.println(lockerCode);
-}
-
-// ==================== MONITOR LOGIC ====================
-void checkMonitors() {
+// Trạng thái ở đây chỉ phục vụ debounce cảm biến, không gắn với order.
+void checkDoors() {
     unsigned long now = millis();
 
     for (int i = 0; i < LOCKER_COUNT; i++) {
-        if (!monitors[i].active || monitors[i].eventSent) continue;
-
-        // Đọc trạng thái reed switch (LOW = mở, HIGH = đóng, tuỳ phần cứng)
         int pinState = digitalRead(LOCKERS[i].reedSwitchPin);
         bool isDoorClosed = (pinState == DOOR_CLOSED_STATE);
 
         if (isDoorClosed) {
-            if (!monitors[i].doorClosedStart) {
-                // Cửa vừa đóng → bắt đầu đếm
-                monitors[i].doorClosedStart = true;
-                monitors[i].doorClosedSince = now;
+            if (!doorStates[i].doorClosedStart) {
+                doorStates[i].doorClosedStart = true;
+                doorStates[i].doorClosedSince = now;
                 Serial.print("[Monitor] Locker ");
-                Serial.print(monitors[i].lockerCode);
+                Serial.print(LOCKERS[i].code);
                 Serial.println(" door closed, start 3s timer...");
-            } else {
-                // Cửa đang đóng → kiểm tra đủ 3 giây chưa
-                unsigned long closedDuration = now - monitors[i].doorClosedSince;
-                if (closedDuration >= DOOR_CLOSED_CONFIRM_MS) {
-                    // ✅ Xác nhận: cửa đóng liên tục ≥ 3 giây
-                    Serial.print("[Monitor] Locker ");
-                    Serial.print(monitors[i].lockerCode);
-                    Serial.println(" door confirmed closed (3s). Sending event...");
-
-                    publishDoorClosedEvent(monitors[i].lockerCode);
-                    monitors[i].eventSent = true;
-                    monitors[i].active    = false;
-                }
+            } else if (!doorStates[i].lockPublished
+                    && now - doorStates[i].doorClosedSince >= DOOR_CLOSED_CONFIRM_MS) {
+                lockLocker(i);
+                publishLockCommand(LOCKERS[i].code);
+                doorStates[i].lockPublished = true;
             }
         } else {
-            // Cửa mở lại → reset timer
-            if (monitors[i].doorClosedStart) {
+            if (doorStates[i].doorClosedStart) {
                 Serial.print("[Monitor] Locker ");
-                Serial.print(monitors[i].lockerCode);
+                Serial.print(LOCKERS[i].code);
                 Serial.println(" door reopened, reset timer.");
-                monitors[i].doorClosedStart = false;
-                monitors[i].doorClosedSince = 0;
             }
+            doorStates[i].doorClosedStart = false;
+            doorStates[i].doorClosedSince = 0;
+            doorStates[i].lockPublished = false;
         }
     }
 }
 
-// ==================== PUBLISH DOOR_CLOSED EVENT ====================
-void publishDoorClosedEvent(const char* lockerCode) {
+void publishLockCommand(const char* lockerCode) {
     StaticJsonDocument<256> doc;
-    doc["eventType"]  = "DOOR_CLOSED";
-    doc["lockerCode"] = lockerCode;
-    doc["deviceId"]   = DEVICE_ID;
-    doc["stationId"]  = STATION_ID;
+    doc["commandType"] = "LOCK";
+    doc["command"] = "LOCK";
+    doc["type"] = "LOCK";
+    doc["lockerId"] = lockerCode;
+    doc["durationMs"] = 1000;
 
     char buffer[256];
     size_t len = serializeJson(doc, buffer);
 
     bool success = mqttClient.publish(topicEvent, buffer, len);
-    Serial.print("[Event] Published DOOR_CLOSED for ");
+    Serial.print("[Event] Published LOCK for ");
     Serial.print(lockerCode);
     Serial.print(" → ");
     Serial.println(success ? "OK" : "FAILED");
